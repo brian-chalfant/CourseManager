@@ -83,6 +83,7 @@ class Course:
         :parameter
         name: name of student to be added
         sn: student number of student to be added
+        :return:  Boolean False if First or Last were omitted, False if Duplicate entry else result of WriteNewStudent
         """
         if 0 < len(name.split()) <= 2:
             print(WARNING + "First and Last name Required" + NORMAL)
@@ -125,9 +126,11 @@ def WriteNewStudent(ns: Student):
 
     :param
     ns: Student Data Structure for student to be added
+    :return:  result of sqlExecute Function
     """
-    sql = "INSERT INTO STUDENTS (ID, FirstName, LastName, Course) VALUES ('{}', '{}', '{}', '{}')".format(
-        str(ns.student_number), str(ns.fname), str(ns.lname), str(course.name))
+    sql = "INSERT INTO STUDENTS (ID, FirstName, LastName, Course, TotalPoints) " \
+          "VALUES ('{}', '{}', '{}', '{}', '{}')".format(
+        str(ns.student_number), str(ns.fname), str(ns.lname), str(course.name), str(ns.total_points))
     return sqlExecute(sql)
 
 
@@ -137,8 +140,10 @@ def WriteNewAssignment(na: Assignment):
 
     :param
     na: Assignment Data Structure for assignment to be added
+    :return:  result of sqlExecute Function
     """
-    sql = "INSERT INTO Assignments (Name, DueDate, PointValue, Course) VALUES ('{}', '{}', '{}', '{}')".format(
+    sql = "INSERT INTO Assignments (Name, DueDate, PointValue, Course) " \
+          "VALUES ('{}', '{}', '{}', '{}')".format(
         str(na.name), str(na.due_date), str(na.point_value), COURSE_NAME)
     return sqlExecute(sql)
 
@@ -152,10 +157,11 @@ def WriteGradedAssignment(sn, name, pv, pointsAwarded):
     name: name of assignment completed
     pv: points possible for assignment
     pointsAwarded: points awarded to the student for completing
+    :return:  result of sqlExecute Function
     """
-    sql = "INSERT INTO GradedAssignments (StudentNumber, AssignmentName, PointsPossible, PointsEarned, Course" \
-          ") VALUES ('{}', '{}', '{}', '{}', '{}')".format(str(sn), str(name), str(pv),
-                                                     str(pointsAwarded), COURSE_NAME)
+    sql = "INSERT INTO GradedAssignments (StudentNumber, AssignmentName, PointsPossible, PointsEarned, Course) "\
+          "VALUES ('{}', '{}', '{}', '{}', '{}')".format(str(sn), str(name), str(pv),
+                                                         str(pointsAwarded), COURSE_NAME)
     return sqlExecute(sql)
 
 
@@ -258,9 +264,9 @@ def compareDates(due_date, dateTurnedIn):
 
 def sqlExecute(sql):
     """
-    sqlEx
-    :param sql:
-    :return:
+    sqlExecute sets up a connection to the database and executes an sql statement excepts sqlite3.OperationalError
+    :param sql: valid SQL statement for current database
+    :return: boolean, True if SQL statement was committed, False if error occured
     """
     db = sqlite3.connect(DATABASE_NAME)
     cursor = db.cursor()
@@ -276,12 +282,24 @@ def sqlExecute(sql):
 
 
 def UpdateStudent(student):
+    """
+    UpdateStudent: generates SQL statement to update a student's total points after an assignment is graded
+    :param student: valid Student Data Type of student who's assignment was graded
+    :return:  result of sqlExecute Function
+    """
     sql = "UPDATE Students SET TotalPoints = '{}' WHERE ID is '{}'".format(str(student.total_points),
                                                                            str(student.student_number))
     return sqlExecute(sql)
 
 
 def GradingSystem():
+    """
+    GradingSystem:  Allows the user to choose a student and then an assignment to enter a grade for.  If the assignment
+    is late, it prompts the user if they would like to impose a penalty.  The points awarded is then calculated if they
+    choose yes, otherwise the original points awarded is used.  The student's data structure is then updated and changes
+    are written to the database
+    :return: occurs if the user selects invalid input and is then returned to the main menu
+    """
     smOptions = printStudentMenu()
     studentSelection = input("Enter line number: ")
     if studentSelection.isnumeric() and int(studentSelection) in smOptions:
@@ -327,6 +345,25 @@ def GradingSystem():
     WriteGradedAssignment(student.student_number, assignment.name, assignment.point_value, pointsAwarded)
     student.total_points += pointsAwarded
     UpdateStudent(student)
+
+
+def printGradeMenu():
+    stOptions = printStudentMenu()
+    gdSelection = input("Enter line number or enter 'A' for all: ")
+    if gdSelection.isnumeric() and int(gdSelection) in stOptions:
+        # only printing one student
+        # TODO: Print a students grades
+        pass
+    elif gdSelection =='A':
+        # printing all of the students
+        #TODO: Print all the students
+        pass
+    else:
+        #invalid
+        return
+
+
+
 
 
 if __name__ == '__main__':
@@ -377,3 +414,7 @@ if __name__ == '__main__':
         # INPUT STUDENT GRADE:
         if selection == 5:
             GradingSystem()
+
+        # PRINT GRADE
+        if selection == 6:
+            printGradeMenu()
