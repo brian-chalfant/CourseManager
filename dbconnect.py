@@ -1,6 +1,6 @@
 import sqlite3
 
-db = sqlite3.connect("coursemanager.db")
+db = sqlite3.connect("courseManager.db")
 cursor = db.cursor()
 with open("assignments.txt", 'r') as newfile:
     lines = newfile.readlines()
