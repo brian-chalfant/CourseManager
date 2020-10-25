@@ -25,6 +25,7 @@ class Student:
     __eq__ comparison of students by ID number to determine if they are identical
 
     """
+
     def __init__(self, name, sn):
         self.fullname = name
         self.fname, self.lname = self.fullname.split()
@@ -50,6 +51,7 @@ class Assignment:
 
     __eq__: provides for comparison by name to determine if they are identical
     """
+
     def __init__(self, name, due_date, pv):
         self.name = name
         self.due_date = due_date
@@ -69,6 +71,7 @@ class Course:
     AddStudent: Adds a student to the course
     AddAssignment: Adds an assignment to the course
     """
+
     def __init__(self, name):
         self.name = name
         self.assignments = []
@@ -85,7 +88,8 @@ class Course:
         sn: student number of student to be added
         :return:  Boolean False if First or Last were omitted, False if Duplicate entry else result of WriteNewStudent
         """
-        if 0 < len(name.split()) <= 2:
+        if VERBOSE: print("Length: " + str(len(name.split())), sn)
+        if len(name.split()) != 2:
             print(WARNING + "First and Last name Required" + NORMAL)
             return False
         new_student = Student(name, sn)
@@ -95,8 +99,8 @@ class Course:
         else:
             self.students.append(new_student)
             self.students.sort()
-            added = WriteNewStudent(new_student)
-        return added
+            success = WriteNewStudent(new_student)
+        return success
 
     def AddAssignment(self, name, ddate, pv):
         """
@@ -116,21 +120,22 @@ class Course:
             return False
         else:
             self.assignments.append(new_assignment)
-            added = WriteNewAssignment(new_assignment)
-        return added
+            success = WriteNewAssignment(new_assignment)
+        return success
 
 
-def WriteNewStudent(ns: Student):
+def WriteNewStudent(ns: Student) -> bool:
     """
     WriteNewStudent Function:  generates SQL for execution to Add new Student into the database
 
+    :rtype: bool
     :param
     ns: Student Data Structure for student to be added
     :return:  result of sqlExecute Function
     """
     sql = "INSERT INTO STUDENTS (ID, FirstName, LastName, Course, TotalPoints) " \
           "VALUES ('{}', '{}', '{}', '{}', '{}')".format(
-        str(ns.student_number), str(ns.fname), str(ns.lname), str(course.name), str(ns.total_points))
+               str(ns.student_number), str(ns.fname), str(ns.lname), str(course.name), str(ns.total_points))
     return sqlExecute(sql)
 
 
@@ -144,7 +149,7 @@ def WriteNewAssignment(na: Assignment):
     """
     sql = "INSERT INTO Assignments (Name, DueDate, PointValue, Course) " \
           "VALUES ('{}', '{}', '{}', '{}')".format(
-        str(na.name), str(na.due_date), str(na.point_value), COURSE_NAME)
+               str(na.name), str(na.due_date), str(na.point_value), COURSE_NAME)
     return sqlExecute(sql)
 
 
@@ -159,7 +164,7 @@ def WriteGradedAssignment(sn, name, pv, pointsAwarded):
     pointsAwarded: points awarded to the student for completing
     :return:  result of sqlExecute Function
     """
-    sql = "INSERT INTO GradedAssignments (StudentNumber, AssignmentName, PointsPossible, PointsEarned, Course) "\
+    sql = "INSERT INTO GradedAssignments (StudentNumber, AssignmentName, PointsPossible, PointsEarned, Course) " \
           "VALUES ('{}', '{}', '{}', '{}', '{}')".format(str(sn), str(name), str(pv),
                                                          str(pointsAwarded), COURSE_NAME)
     return sqlExecute(sql)
@@ -172,6 +177,21 @@ def getStudents():
     db = sqlite3.connect(DATABASE_NAME)
     cursor = db.cursor()
     sql = "SELECT * FROM STUDENTS WHERE Course is '{}'".format(COURSE_NAME)
+    if VERBOSE: print(CYAN + sql + NORMAL)
+    records = cursor.execute(sql)
+    return records
+
+
+def getStudentGrades(student):
+    """
+    getStudentGrades retrieves graded assignments, puts them in a list and returns them
+    :param student:
+    :return: list of grades
+    """
+    db = sqlite3.connect(DATABASE_NAME)
+    cursor = db.cursor()
+    sql = "SELECT * FROM GradedAssignments WHERE StudentNumber is '{}' " \
+          "AND Course is '{}'".format(student.student_number, COURSE_NAME)
     if VERBOSE: print(CYAN + sql + NORMAL)
     records = cursor.execute(sql)
     return records
@@ -266,7 +286,7 @@ def sqlExecute(sql):
     """
     sqlExecute sets up a connection to the database and executes an sql statement excepts sqlite3.OperationalError
     :param sql: valid SQL statement for current database
-    :return: boolean, True if SQL statement was committed, False if error occured
+    :return: boolean, True if SQL statement was committed, False if error occurred
     """
     db = sqlite3.connect(DATABASE_NAME)
     cursor = db.cursor()
@@ -292,6 +312,22 @@ def UpdateStudent(student):
     return sqlExecute(sql)
 
 
+def CheckIfExists(student, assignment):
+    db = sqlite3.connect(DATABASE_NAME)
+    cursor = db.cursor()
+    sql = "SELECT * FROM GradedAssignments WHERE StudentNumber is '{}' and AssignmentName is '{}'".format(
+           student.student_number, assignment.name)
+    records = cursor.execute(sql)
+    exists = [record for record in records]
+    return (True, exists[0]) if len(exists) > 0 else (False, None)
+
+
+def UpdateGradedAssignment(student_number, name, pointsAwarded):
+    sql = "UPDATE GradedAssignments SET PointsEarned = '{}' WHERE StudentNumber = '{}' and AssignmentName = '{}'".format(
+        str(pointsAwarded), str(student_number), str(name), str(pointsAwarded), COURSE_NAME)
+    return sqlExecute(sql)
+
+
 def GradingSystem():
     """
     GradingSystem:  Allows the user to choose a student and then an assignment to enter a grade for.  If the assignment
@@ -302,18 +338,22 @@ def GradingSystem():
     """
     smOptions = printStudentMenu()
     studentSelection = input("Enter line number: ")
+    # is the selection valid?
     if studentSelection.isnumeric() and int(studentSelection) in smOptions:
         studentSelection = int(studentSelection)
     else:
+        # Selection was not valid
         print(WARNING + "Invalid Input" + NORMAL)
         return
     student = course.students[studentSelection]
-    print("Grading Assignments for {}".format(student.fullname))
+    print("Grading Assignments for {}{}{}".format(OK, student.fullname, NORMAL))
     amOptions = printAssignmentMenu()
     assignmentSelection = input("Enter line number: ")
+    # is the selection valid
     if assignmentSelection.isnumeric() and int(assignmentSelection) in amOptions:
         assignmentSelection = int(assignmentSelection)
     else:
+        #selection was not valid
         print(WARNING + "Invalid Input" + NORMAL)
         return
     assignment = course.assignments[assignmentSelection]
@@ -322,14 +362,17 @@ def GradingSystem():
     print("Points Possible: {}".format(assignment.point_value))
     print("Due Date: {} ".format(assignment.due_date))
     pointsAwarded = input("Enter points awarded: ")
+    # is the selection valid?
     while not (pointsAwarded.isnumeric() and 0 < int(pointsAwarded) <= assignment.point_value):
+        # selection not valid, loop until valid
         print(WARNING + "Invalid Input" + NORMAL)
         pointsAwarded = input("Enter points awarded: ")
     pointsAwarded = float(pointsAwarded)
     dateTurnedIn = input("Enter Date Turned in (YYYY-MM-DD): ")
-    formatCheck = dateTurnedIn.split("-")
-    while not ((len(formatCheck) == 3) and formatCheck[0].isnumeric() and formatCheck[1].isnumeric() and
-               formatCheck[2].isnumeric()):
+    # is the date valid?
+    dateCheck = dateTurnedIn.split("-")
+    while not ((len(dateCheck) == 3) and dateCheck[0].isnumeric() and dateCheck[1].isnumeric() and
+               dateCheck[2].isnumeric()):
         print(WARNING + "Invalid Input" + NORMAL)
         dateTurnedIn = input("Enter Date Turned in (YYYY-MM-DD): ")
     days_late = compareDates(assignment.due_date, dateTurnedIn)
@@ -342,9 +385,44 @@ def GradingSystem():
             else:
                 print("pointsAwarded:" + str(pointsAwarded), "days_late * .1: " + str(days_late * .1))
                 pointsAwarded -= pointsAwarded * (days_late * .1)
-    WriteGradedAssignment(student.student_number, assignment.name, assignment.point_value, pointsAwarded)
+    # Check if this assignment has been previously graded and is already in the database
+    exists = CheckIfExists(student, assignment)
+    if exists[0]:
+        replace = input("This Assignment has been previously graded: \nPoints Awarded: {} \n"
+                        "Would you like to update? (y/n): ".format(exists[1][3]))
+        if replace.lower() == 'y':
+            # Update the database with the new grade
+            UpdateGradedAssignment(student.student_number, assignment.name, pointsAwarded)
+            # remove the points that were awarded previously from the student record
+            student.total_points -= int(exists[1][3])
+        else:
+            return
+    else:
+        # Write the graded assignment to the database
+        WriteGradedAssignment(student.student_number, assignment.name, assignment.point_value, pointsAwarded)
+    # add the new points to the student record
     student.total_points += pointsAwarded
+    # update the student record to the database
     UpdateStudent(student)
+
+
+def printStudentGrade(student: Student):
+    total_points_possible = 0
+    grades = getStudentGrades(student)
+    print("- - - - - - - - - - - - ")
+    print(" {} Grades for {}{}{}({})".format(COURSE_NAME, OK, student.fullname, NORMAL, student.student_number))
+    print("{:20}\t{:10}\t{:10}".format("Assignment", "Points Possible", "Points Awarded"))
+
+    for grade in grades:
+        total_points_possible += int(grade[2])
+        print("{:20}\t{:10}\t{:10}".format(grade[1], grade[2], grade[3]))
+    if total_points_possible > 0:
+        print("{} has a total of {} points out of {} possible: {}% ".format(
+            student.fname, student.total_points, total_points_possible,
+            (student.total_points / total_points_possible) * 100))
+    else:
+        print("{} has not completed any assignments".format(student.fname))
+    print("- - - - - - - - - - - - ")
 
 
 def printGradeMenu():
@@ -352,18 +430,16 @@ def printGradeMenu():
     gdSelection = input("Enter line number or enter 'A' for all: ")
     if gdSelection.isnumeric() and int(gdSelection) in stOptions:
         # only printing one student
-        # TODO: Print a students grades
-        pass
-    elif gdSelection =='A':
+        student = course.students[int(gdSelection)]
+        printStudentGrade(student)
+    elif gdSelection == 'A':
         # printing all of the students
-        #TODO: Print all the students
+        for student in course.students:
+            printStudentGrade(student)
         pass
     else:
-        #invalid
+        # invalid
         return
-
-
-
 
 
 if __name__ == '__main__':
@@ -374,13 +450,13 @@ if __name__ == '__main__':
     while True:
         print()
         options = printMenu()
-        selection = input()
+        selection = input(">:")
+        print()
         if selection.isnumeric() and int(selection) in options:
             selection = int(selection)
         else:
             print(WARNING + "Invalid Input" + NORMAL)
             continue
-        print("selection: " + str(selection))
         # VIEW ROSTER
         if selection == 1:
             printStudentMenu()
@@ -391,12 +467,19 @@ if __name__ == '__main__':
         if selection == 3:
             assignment_name = input("Assignment Name: ")
             date_entry = input('Enter a date in YYYY-MM-DD format: ')
+            formatCheck = date_entry.split("-")
+            while not ((len(formatCheck) == 3) and formatCheck[0].isnumeric() and formatCheck[1].isnumeric() and
+                       formatCheck[2].isnumeric()):
+                print(WARNING + "Invalid Input" + NORMAL)
+                date_entry = input("Enter a date in YYYY-MM-DD format: ")
             year, month, day = map(int, date_entry.split('-'))
             date1 = datetime.date(year, month, day)
-            print(date1)
-            point_value = int(input("Point Value: "))
-            addbool = course.AddAssignment(assignment_name, date1, point_value)
-            if addbool:
+            point_value = input("Point Value: ")
+            while not (point_value.isnumeric() and int(point_value) > 0):
+                point_value = input("Point Value: ")
+            point_value = int(point_value)
+            added = course.AddAssignment(assignment_name, date1, point_value)
+            if added:
                 print(OK + "Assignment Added Successfully" + NORMAL)
             else:
                 print(WARNING + "Assignment Not Added!" + NORMAL)
@@ -405,8 +488,8 @@ if __name__ == '__main__':
         if selection == 4:
             student_name = input("Student Name (First Last): ")
             student_number = input("Student Number (@01234567): ")
-            addbool = course.AddStudent(student_name, student_number)
-            if addbool:
+            added = course.AddStudent(student_name, student_number)
+            if added:
                 print(OK + "Student Added Successfully" + NORMAL)
             else:
                 print(WARNING + "Student Not Added!" + NORMAL)
@@ -418,3 +501,7 @@ if __name__ == '__main__':
         # PRINT GRADE
         if selection == 6:
             printGradeMenu()
+
+# TODO Delete Student
+# TODO Delete Assignment
+# TODO Update Assignment
