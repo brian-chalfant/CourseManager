@@ -12,10 +12,10 @@ import sqlite3
 
 # - - - - - - - - - - - - - - - - - - - -  OPTIONS AND CONSTANTS  - - - - - - - - - - - - - - - - - - - - - - - #
 # ASCII Values to Color Text
-OK = '\033[92m'            # Greenish Color
-WARNING = '\033[93m'       # Yellow Color
-NORMAL = '\033[0m'         # White
-SQLCODE = '\u001b[36m'     # Cyan Color
+OK = '\033[92m'  # Greenish Color
+WARNING = '\033[93m'  # Yellow Color
+NORMAL = '\033[0m'  # White
+SQLCODE = '\u001b[36m'  # Cyan Color
 
 # Verbose Mode prints SQL Statements as they happen (True to Turn on, False to turn off)
 VERBOSE = True
@@ -28,6 +28,7 @@ COURSE_NAME = "CSCI3771"
 
 # Daily Penalty for late assignments 10% = .1
 PENALTY = .1
+
 
 # - - - - - - - - - - - - - - - - - - - -  CLASS DECLARATIONS  - - - - - - - - - - - - - - - - - - - - - - - #
 
@@ -179,6 +180,7 @@ class Course:
             success = WriteNewAssignment(new_assignment)
         return success
 
+
 # - - - - - - - - - - - - - - - - - - - -  DATABASE INTERACTIONS - - - - - - - - - - - - - - - - - - - - - - - #
 
 
@@ -192,7 +194,7 @@ def WriteNewStudent(ns: Student) -> bool:
     """
     sql = "INSERT INTO STUDENTS (ID, FirstName, LastName, Course, TotalPoints) " \
           "VALUES ('{}', '{}', '{}', '{}', '{}')".format(
-               str(ns.student_number), str(ns.fName), str(ns.lName), str(course.name), str(ns.total_points))
+           str(ns.student_number), str(ns.fName), str(ns.lName), str(course.name), str(ns.total_points))
     return sqlExecute(sql)
 
 
@@ -205,7 +207,7 @@ def WriteNewAssignment(na: Assignment):
     """
     sql = "INSERT INTO Assignments (Name, DueDate, PointValue, Course) " \
           "VALUES ('{}', '{}', '{}', '{}')".format(
-               str(na.name), str(na.due_date), str(na.point_value), COURSE_NAME)
+           str(na.name), str(na.due_date), str(na.point_value), COURSE_NAME)
     return sqlExecute(sql)
 
 
@@ -295,7 +297,7 @@ def getAssignments():
     """
     db = sqlite3.connect(DATABASE_NAME)
     cursor = db.cursor()
-    sql = "SELECT * FROM Assignments WHERE Course is '{}'".format(COURSE_NAME)
+    sql = "SELECT * FROM Assignments WHERE Course is '{}' ORDER BY DueDate".format(COURSE_NAME)
     if VERBOSE: print(SQLCODE + "(VERBOSE): " + sql + NORMAL)
     records = cursor.execute(sql)
     return records
@@ -356,7 +358,7 @@ def CheckIfExists(student, assignment):
     db = sqlite3.connect(DATABASE_NAME)
     cursor = db.cursor()
     sql = "SELECT * FROM GradedAssignments WHERE StudentNumber is '{}' and AssignmentName is '{}'".format(
-           student.student_number, assignment.name)
+        student.student_number, assignment.name)
     if VERBOSE: print(SQLCODE + "(VERBOSE): " + sql + NORMAL)
     records = cursor.execute(sql)
     exists = [record for record in records]
@@ -463,14 +465,21 @@ def AddNewAssignment(update, assignment):
         print("Enter new details for {}".format(assignment_name))
     date_entry = input('Enter a due date in YYYY-MM-DD format: ')
     formatCheck = date_entry.split("-")
-    while not ((len(formatCheck) == 3) and formatCheck[0].isnumeric() and formatCheck[1].isnumeric() and
-               formatCheck[2].isnumeric()):
+    while not ((len(formatCheck) == 3) and
+               formatCheck[0].isnumeric() and
+               formatCheck[1].isnumeric() and
+               formatCheck[2].isnumeric() and
+               len(formatCheck[0]) == 4 and
+               1 <= (len(formatCheck[1])) < 3 and
+               1 <= (len(formatCheck[2])) < 3):
         print(WARNING + "Invalid Input" + NORMAL)
         date_entry = input("Enter a date in YYYY-MM-DD format: ")
+        formatCheck = date_entry.split("-")
     year, month, day = map(int, date_entry.split('-'))
     date1 = datetime.date(year, month, day)
     point_value = input("Point Value: ")
     while not (point_value.isnumeric() and int(point_value) > 0):
+        print(WARNING + "Invalid Input" + NORMAL)
         point_value = input("Point Value: ")
     point_value = int(point_value)
     added = course.AddAssignment(assignment_name, date1, point_value)
@@ -539,10 +548,16 @@ def GradingSystem():
     dateTurnedIn = input("Enter Date Turned in (YYYY-MM-DD): ")
     # is the date valid?
     dateCheck = dateTurnedIn.split("-")
-    while not ((len(dateCheck) == 3) and dateCheck[0].isnumeric() and dateCheck[1].isnumeric() and
-               dateCheck[2].isnumeric()):
+    while not ((len(dateCheck) == 3) and
+               dateCheck[0].isnumeric() and
+               dateCheck[1].isnumeric() and
+               dateCheck[2].isnumeric() and
+               len(dateCheck[0]) == 4 and
+               1 <= len(dateCheck[1]) <= 2 and
+               1 <= len(dateCheck[2]) <= 2):
         print(WARNING + "Invalid Input" + NORMAL)
         dateTurnedIn = input("Enter Date Turned in (YYYY-MM-DD): ")
+        dateCheck = dateTurnedIn.split("-")
     days_late = compareDates(assignment.due_date, dateTurnedIn)
     if days_late > 0:
         imposePenalty = input(OK + ("Assignment is {} days late, impose {}% penalty? (y/n):".format(
